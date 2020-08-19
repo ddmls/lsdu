@@ -6,39 +6,113 @@ import (
 )
 
 // du -s -m *
-// if path is a symbolic link to a dir it is followed
+// if initial path is a symbolic link to a dir it is followed
 // however symbolinc links under it are not followed (so not checking for circular links)
 // (ReadDir uses Lstat)
 // hard links are not checked (they will be accounted more than once)
 
-// const path = "/data/dimosd/Downloads"
-const path = "/tmp/ama"
+// const path = "."
 
-func errorExit(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
-	os.Exit(1)
+const path = "/data/dimosd/Downloads"
+
+type deepFileInfo struct {
+	os.FileInfo
+	deepSize int64
 }
 
-func main() {
+func (d deepFileInfo) String() string {
+	return fmt.Sprintf("%v %d '%s'", d.Mode(), d.deepSize, d.Name())
+}
+
+func visitDir(path string,
+	relative bool,
+	f func([]os.FileInfo) error) error {
 	dir, err := os.Open(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Could not open %s\n", path)
-		os.Exit(1)
+		return err
 	}
 	defer dir.Close()
 
-	if fileInfo, err := dir.Stat(); err != nil || !fileInfo.IsDir() {
-		fmt.Fprintf(os.Stderr, "%s is not a directory\n", path)
-		os.Exit(1)
-	}
-
 	fileInfos, err := dir.Readdir(-1)
 	if err != nil {
-		errorExit("Error reading contents of %s\n", path)
+		return err
 	}
 
-	for _, fileInfo := range fileInfos {
-		fmt.Println(fileInfo.Name(), fileInfo.Size())
+	prevDir := ".."
+	if !relative {
+		prevDir, err = os.Getwd()
+		if err != nil {
+			return err
+		}
 	}
 
+	if err := dir.Chdir(); err != nil {
+		return err
+	}
+	if err := f(fileInfos); err != nil {
+		return err
+	}
+	if err := os.Chdir(prevDir); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// paths of fileInfo are considered relative to current dir
+// as returned by readdir(path); chdir(path)
+func deepSize(
+	fileInfo os.FileInfo,
+) (int64, error) {
+	if !fileInfo.IsDir() {
+		return fileInfo.Size(), nil
+	}
+
+	var totalSize int64
+	err := visitDir(fileInfo.Name(), true, func(fileInfos []os.FileInfo) error {
+		for _, fileInfo := range fileInfos {
+			size, err := deepSize(fileInfo)
+			if err != nil {
+				return err
+			}
+			totalSize += size
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	return totalSize, nil
+}
+
+func readDirDeep(path string) ([]deepFileInfo, error) {
+	var dirEntries []deepFileInfo
+	err := visitDir(path, false, func(fileInfos []os.FileInfo) error {
+		for _, fileInfo := range fileInfos {
+			size, err := deepSize(fileInfo)
+			if err != nil {
+				return err
+			}
+			entry := deepFileInfo{fileInfo, size}
+			dirEntries = append(dirEntries, entry)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return dirEntries, nil
+}
+
+func main() {
+	dirEntries, err := readDirDeep(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	for _, entry := range dirEntries {
+		fmt.Println(entry)
+	}
 }

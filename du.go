@@ -21,7 +21,7 @@ type deepFileInfo struct {
 }
 
 func (d deepFileInfo) String() string {
-	return fmt.Sprintf("%v %d '%s'", d.Mode(), d.deepSize, d.Name())
+	return fmt.Sprintf("%v %d %s '%s'", d.Mode(), d.deepSize, d.ModTime().Format("2006-01-02"), d.Name())
 }
 
 func visitDir(path string,

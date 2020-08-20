@@ -84,6 +84,12 @@ func deepSize(
 }
 
 func readDirDeep(path string) ([]deepFileInfo, error) {
+	if fileInfo, err := os.Stat(path); err != nil {
+		return nil, err
+	} else if !fileInfo.IsDir() {
+		return []deepFileInfo{{fileInfo, fileInfo.Size()}}, nil
+	}
+
 	var dirEntries []deepFileInfo
 	err := visitDir(path, false, func(fileInfos []os.FileInfo) error {
 		for _, fileInfo := range fileInfos {
@@ -107,7 +113,7 @@ func main() {
 	var human bool
 	flag.BoolVar(&human, "human", false, "display size in KiB, MiB etc")
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "%s [OPTION]... [DIRECTORY]...\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "%s [OPTION]... [FILE|DIRECTORY]...\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()

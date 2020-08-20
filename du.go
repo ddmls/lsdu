@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 )
@@ -10,10 +11,6 @@ import (
 // however symbolinc links under it are not followed (so not checking for circular links)
 // (ReadDir uses Lstat)
 // hard links are not checked (they will be accounted more than once)
-
-// const path = "."
-
-const path = "/data/dimosd/Downloads"
 
 type deepFileInfo struct {
 	os.FileInfo
@@ -107,12 +104,30 @@ func readDirDeep(path string) ([]deepFileInfo, error) {
 }
 
 func main() {
-	dirEntries, err := readDirDeep(path)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	var human bool
+	flag.BoolVar(&human, "human", false, "display size in KiB, MiB etc")
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "%s [OPTION]... [DIRECTORY]...\n", os.Args[0])
+		flag.PrintDefaults()
 	}
-	for _, entry := range dirEntries {
-		fmt.Println(entry)
+	flag.Parse()
+
+	paths := []string{"."}
+	if flag.NArg() > 0 {
+		paths = flag.Args()
+	}
+
+	for i, path := range paths {
+		dirEntries, err := readDirDeep(path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		for _, entry := range dirEntries {
+			fmt.Println(entry)
+		}
+		if i < len(paths)-1 {
+			fmt.Println()
+		}
 	}
 }

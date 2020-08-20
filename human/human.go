@@ -17,7 +17,7 @@ const (
 )
 
 // Humanize reports the size in power of 1024 units (KiB, MiB etc)
-// Use width 6
+// Use width 6+suffix length
 func Humanize(size int64) string {
 	suffixes := [...]string{"b", "K", "M", "G", "T", "P", "E"}
 	var unit int64 = KiB

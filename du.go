@@ -22,7 +22,7 @@ var humanSizes bool
 
 func (d deepFileInfo) String() string {
 	if humanSizes {
-		return fmt.Sprintf("%v %s %s '%s'", d.Mode(), human.Humanize(d.deepSize), d.ModTime().Format("2006-01-02"), d.Name())
+		return fmt.Sprintf("%v %7s %s '%s'", d.Mode(), human.Humanize(d.deepSize), d.ModTime().Format("2006-01-02"), d.Name())
 	}
 	return fmt.Sprintf("%v %d %s '%s'", d.Mode(), d.deepSize, d.ModTime().Format("2006-01-02"), d.Name())
 }
@@ -64,6 +64,8 @@ func visitDir(path string,
 
 // paths of fileInfo are considered relative to current dir
 // as returned by readdir(path); chdir(path)
+// note we do not include the dir size reported by stat (for its entries), just the size of files.
+// The size reported is apparent size, not adjusted for cluster waste or holes.
 func deepSize(
 	fileInfo os.FileInfo,
 ) (int64, error) {

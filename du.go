@@ -1,6 +1,7 @@
 package main
 
 import (
+	"du/human"
 	"flag"
 	"fmt"
 	"os"
@@ -17,7 +18,12 @@ type deepFileInfo struct {
 	deepSize int64
 }
 
+var humanSizes bool
+
 func (d deepFileInfo) String() string {
+	if humanSizes {
+		return fmt.Sprintf("%v %s %s '%s'", d.Mode(), human.Humanize(d.deepSize), d.ModTime().Format("2006-01-02"), d.Name())
+	}
 	return fmt.Sprintf("%v %d %s '%s'", d.Mode(), d.deepSize, d.ModTime().Format("2006-01-02"), d.Name())
 }
 
@@ -110,8 +116,7 @@ func readDirDeep(path string) ([]deepFileInfo, error) {
 }
 
 func main() {
-	var human bool
-	flag.BoolVar(&human, "human", false, "display size in KiB, MiB etc")
+	flag.BoolVar(&humanSizes, "human", false, "display size in KiB, MiB etc")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "%s [OPTION]... [FILE|DIRECTORY]...\n", os.Args[0])
 		flag.PrintDefaults()

@@ -33,4 +33,6 @@ func Humanize(size int64) string {
 		return fmt.Sprintf("%d%s", size, suffixes[i])
 	}
 	return fmt.Sprintf("%.1f%s", float64(size)/float64(unit), suffixes[i])
+	// Fixed point arithmetic truncates instead of rounding, causing small errors which may or may not be important
+	// return fmt.Sprintf("%d.%d%s", size/unit, (10*size/unit)%10, suffixes[i])
 }

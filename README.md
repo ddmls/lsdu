@@ -1,5 +1,5 @@
 # lsdu
-Hybdrid of ls, du and df
+Hybrid of ls, du and df
 
 ```
 lsdu [OPTION]... [FILE|DIRECTORY]...

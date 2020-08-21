@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 )
 
 // du -s -m *
@@ -118,7 +119,9 @@ func readDirDeep(path string) ([]deepFileInfo, error) {
 }
 
 func main() {
+	var sortBySize bool
 	flag.BoolVar(&humanSizes, "human", false, "display size in KiB, MiB etc")
+	flag.BoolVar(&sortBySize, "sort", true, "sort by size")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "%s [OPTION]... [FILE|DIRECTORY]...\n", os.Args[0])
 		flag.PrintDefaults()
@@ -135,6 +138,11 @@ func main() {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
+		}
+		if sortBySize {
+			sort.Slice(dirEntries, func(i, j int) bool {
+				return dirEntries[i].deepSize < dirEntries[j].deepSize
+			})
 		}
 		for _, entry := range dirEntries {
 			fmt.Println(entry)

@@ -1,11 +1,12 @@
 package main
 
 import (
-	"du/human"
 	"flag"
 	"fmt"
 	"os"
 	"sort"
+
+	"github.com/ddmls/lsdu/human"
 )
 
 // du -s -m *

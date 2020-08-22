@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/ddmls/lsdu/du"
 	"github.com/ddmls/lsdu/human"
 )
 
@@ -20,7 +21,7 @@ type deepFileInfo struct {
 	deepSize int64
 }
 
-var humanSizes bool
+var humanSizes, apparentSize bool
 
 func (d deepFileInfo) String() string {
 	if humanSizes {
@@ -114,9 +115,11 @@ func readDirDeep(path string) ([]deepFileInfo, error) {
 }
 
 func main() {
-	var sortBySize bool
+	var sortBySize, reportFreeSpace bool
 	flag.BoolVar(&humanSizes, "human", false, "display size in KiB, MiB etc")
 	flag.BoolVar(&sortBySize, "sort", true, "sort by size")
+	flag.BoolVar(&reportFreeSpace, "free", false, "report free space")
+	flag.BoolVar(&apparentSize, "apparent", false, "show apparent size")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "%s [OPTION]... [FILE|DIRECTORY]...\n", os.Args[0])
 		flag.PrintDefaults()
@@ -141,6 +144,12 @@ func main() {
 		}
 		for _, entry := range dirEntries {
 			fmt.Println(entry)
+		}
+		if reportFreeSpace {
+			// If an error happens don't report space instead of quitting
+			if freeSpace, totalSpace, err := du.FreeSpace(path); err == nil {
+				fmt.Printf("Free space %s/%s\n", human.Humanize(int64(freeSpace)), human.Humanize(int64(totalSpace)))
+			}
 		}
 		if i < len(paths)-1 {
 			fmt.Println()

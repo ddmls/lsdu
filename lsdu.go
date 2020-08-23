@@ -17,11 +17,11 @@ import (
 // hard links are not checked (they will be accounted more than once)
 
 type deepFileInfo struct {
-	os.FileInfo
+	du.FileInfo
 	deepSize int64
 }
 
-var humanSizes, apparentSize bool
+var humanSizes bool
 
 func (d deepFileInfo) String() string {
 	if humanSizes {
@@ -32,14 +32,14 @@ func (d deepFileInfo) String() string {
 
 func visitDir(path string,
 	prevDir string,
-	f func([]os.FileInfo) error) error {
+	f func([]du.FileInfo) error) error {
 	dir, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer dir.Close()
 
-	fileInfos, err := dir.Readdir(-1)
+	dirnames, err := dir.Readdirnames(-1)
 	if err != nil {
 		return err
 	}
@@ -47,6 +47,16 @@ func visitDir(path string,
 	if err := dir.Chdir(); err != nil {
 		return err
 	}
+
+	var fileInfos []du.FileInfo
+	for _, name := range dirnames {
+		fileInfo, err := du.Lstat(name)
+		if err != nil {
+			return err
+		}
+		fileInfos = append(fileInfos, fileInfo)
+	}
+
 	if err := f(fileInfos); err != nil {
 		return err
 	}
@@ -64,14 +74,14 @@ func visitDir(path string,
 // note we do not include the dir size reported by stat (for its entries), just the size of files.
 // The size reported is apparent size, not adjusted for cluster waste or holes.
 func deepSize(
-	fileInfo os.FileInfo,
+	fileInfo du.FileInfo,
 ) (int64, error) {
 	if !fileInfo.IsDir() {
 		return fileInfo.Size(), nil
 	}
 
 	var totalSize int64
-	err := visitDir(fileInfo.Name(), "..", func(fileInfos []os.FileInfo) error {
+	err := visitDir(fileInfo.Name(), "..", func(fileInfos []du.FileInfo) error {
 		for _, fileInfo := range fileInfos {
 			size, err := deepSize(fileInfo)
 			if err != nil {
@@ -89,14 +99,14 @@ func deepSize(
 }
 
 func readDirDeep(path string) ([]deepFileInfo, error) {
-	if fileInfo, err := os.Stat(path); err != nil {
+	if fileInfo, err := du.Stat(path); err != nil {
 		return nil, err
 	} else if !fileInfo.IsDir() {
 		return []deepFileInfo{{fileInfo, fileInfo.Size()}}, nil
 	}
 
 	var dirEntries []deepFileInfo
-	err := visitDir(path, "", func(fileInfos []os.FileInfo) error {
+	err := visitDir(path, "", func(fileInfos []du.FileInfo) error {
 		for _, fileInfo := range fileInfos {
 			size, err := deepSize(fileInfo)
 			if err != nil {
@@ -119,7 +129,7 @@ func main() {
 	flag.BoolVar(&humanSizes, "human", false, "display size in KiB, MiB etc")
 	flag.BoolVar(&sortBySize, "sort", true, "sort by size")
 	flag.BoolVar(&reportFreeSpace, "free", false, "report free space")
-	flag.BoolVar(&apparentSize, "apparent", false, "show apparent size")
+	flag.BoolVar(&du.ReportApparentSize, "apparent", false, "show apparent size")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "%s [OPTION]... [FILE|DIRECTORY]...\n", os.Args[0])
 		flag.PrintDefaults()

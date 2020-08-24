@@ -1,5 +1,4 @@
 // +build !windows
-// +build !plan9
 
 package du
 
@@ -14,22 +13,6 @@ import (
 
 // ReportApparentSize affects FileInfo.Size()
 var ReportApparentSize bool
-
-// https://stackoverflow.com/questions/20108520/get-amount-of-free-disk-space-using-go
-// see /usr/lib/go/src/syscall/ztypes_linux_amd64.go
-// compiles for linux, darwin but freebsd differs in its types
-
-// FreeSpace reports the disk space available to unprivileged user in bytes and the total disk space
-func FreeSpace(path string) (uint64, uint64, error) {
-	var statfs syscall.Statfs_t
-
-	if err := syscall.Statfs(path, &statfs); err != nil {
-		return 0, 0, err
-	}
-	return statfs.Bavail * uint64(statfs.Bsize),
-		statfs.Blocks * uint64(statfs.Bsize),
-		nil
-}
 
 // FileInfo contains the information of os.FileInfo and the allocated size of a file which may be different if it contains holes.
 type FileInfo interface {

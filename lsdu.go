@@ -156,10 +156,12 @@ func main() {
 			fmt.Println(entry)
 		}
 		if reportFreeSpace {
-			// If an error happens don't report space instead of quitting
-			if freeSpace, totalSpace, err := du.FreeSpace(path); err == nil {
-				fmt.Printf("Free space %s/%s\n", human.Humanize(int64(freeSpace)), human.Humanize(int64(totalSpace)))
+			freeSpace, totalSpace, err := du.FreeSpace(path)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
 			}
+			fmt.Printf("Free space %s/%s\n", human.Humanize(int64(freeSpace)), human.Humanize(int64(totalSpace)))
 		}
 		if i < len(paths)-1 {
 			fmt.Println()

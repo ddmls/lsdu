@@ -39,14 +39,14 @@ type FileInfo interface {
 }
 
 type fileInfo struct {
-	osfi      os.FileInfo
-	blockSize int64
+	osfi          os.FileInfo
+	allocatedSize int64
 }
 
 // We need to override Size() so lots of boilerplate
 
 func (fi fileInfo) AllocatedSize() int64 {
-	return fi.blockSize
+	return fi.allocatedSize
 }
 
 func (fi fileInfo) ApparentSize() int64 {
@@ -84,9 +84,8 @@ func (fi fileInfo) Sys() interface{} {
 // man 3 fstatat for an example
 // man 2 stat
 
-// Stat returns the info of os.Stat plus the real allocated size of the file
-func Stat(path string) (FileInfo, error) {
-	fi, err := os.Stat(path)
+func xstat(path string, statFunc func(string) (os.FileInfo, error)) (FileInfo, error) {
+	fi, err := statFunc(path)
 	if err != nil {
 		return nil, err
 	}
@@ -98,16 +97,12 @@ func Stat(path string) (FileInfo, error) {
 	return fileInfo{fi, sys.Blocks * 512}, nil
 }
 
-// Lstat returns the info of os.Lstat plus the real allocated size of the file
+// Stat returns the info of os.Stat and the real allocated size of the file
+func Stat(path string) (FileInfo, error) {
+	return xstat(path, os.Stat)
+}
+
+// Lstat returns the info of os.Lstat and the real allocated size of the file
 func Lstat(path string) (FileInfo, error) {
-	fi, err := os.Lstat(path)
-	if err != nil {
-		return nil, err
-	}
-	sys, ok := fi.Sys().(*syscall.Stat_t)
-	if !ok {
-		return nil, fmt.Errorf("Type assertion of *syscall.Stat_t failed")
-	}
-	// blocks are always 512-byte units (man 2 stat)
-	return fileInfo{fi, sys.Blocks * 512}, nil
+	return xstat(path, os.Lstat)
 }

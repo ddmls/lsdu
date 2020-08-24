@@ -11,7 +11,7 @@ import (
 
 // If Go 2 drops syscall we have to use golang.org/x/sys/unix
 
-// ReportApparentSize affects FileInfo.Size()
+// ReportApparentSize chooses whether Size() returns ApparentSize() or AllocatedSize()
 var ReportApparentSize bool
 
 // FileInfo contains the information of os.FileInfo and the allocated size of a file which may be different if it contains holes.

@@ -30,7 +30,7 @@ func (d deepFileInfo) String() string {
 }
 
 func visitDir(path string,
-	relative bool,
+	prevDir string,
 	f func([]os.FileInfo) error) error {
 	dir, err := os.Open(path)
 	if err != nil {
@@ -43,22 +43,16 @@ func visitDir(path string,
 		return err
 	}
 
-	prevDir := ".."
-	if !relative {
-		prevDir, err = os.Getwd()
-		if err != nil {
-			return err
-		}
-	}
-
 	if err := dir.Chdir(); err != nil {
 		return err
 	}
 	if err := f(fileInfos); err != nil {
 		return err
 	}
-	if err := os.Chdir(prevDir); err != nil {
-		return err
+	if prevDir != "" {
+		if err := os.Chdir(prevDir); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -76,7 +70,7 @@ func deepSize(
 	}
 
 	var totalSize int64
-	err := visitDir(fileInfo.Name(), true, func(fileInfos []os.FileInfo) error {
+	err := visitDir(fileInfo.Name(), "..", func(fileInfos []os.FileInfo) error {
 		for _, fileInfo := range fileInfos {
 			size, err := deepSize(fileInfo)
 			if err != nil {
@@ -101,7 +95,7 @@ func readDirDeep(path string) ([]deepFileInfo, error) {
 	}
 
 	var dirEntries []deepFileInfo
-	err := visitDir(path, false, func(fileInfos []os.FileInfo) error {
+	err := visitDir(path, "", func(fileInfos []os.FileInfo) error {
 		for _, fileInfo := range fileInfos {
 			size, err := deepSize(fileInfo)
 			if err != nil {

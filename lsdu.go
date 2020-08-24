@@ -6,127 +6,14 @@ import (
 	"os"
 	"sort"
 
+	"github.com/ddmls/lsdu/deep"
 	"github.com/ddmls/lsdu/du"
 	"github.com/ddmls/lsdu/human"
 )
 
-// du -s -m *
-// if initial path is a symbolic link to a dir it is followed
-// however symbolinc links under it are not followed (so not checking for circular links)
-// (ReadDir uses Lstat)
-// hard links are not checked (they will be accounted more than once)
-
-type deepFileInfo struct {
-	du.FileInfo
-	deepSize int64
-}
-
-var humanSizes bool
-
-func (d deepFileInfo) String() string {
-	if humanSizes {
-		return fmt.Sprintf("%v %7s %s '%s'", d.Mode(), human.Humanize(d.deepSize), d.ModTime().Format("2006-01-02"), d.Name())
-	}
-	return fmt.Sprintf("%v %d %s '%s'", d.Mode(), d.deepSize, d.ModTime().Format("2006-01-02"), d.Name())
-}
-
-func visitDir(path string,
-	prevDir string,
-	f func([]du.FileInfo) error) error {
-	dir, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-
-	dirnames, err := dir.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-
-	if err := dir.Chdir(); err != nil {
-		return err
-	}
-
-	var fileInfos []du.FileInfo
-	for _, name := range dirnames {
-		fileInfo, err := du.Lstat(name)
-		if err != nil {
-			return err
-		}
-		fileInfos = append(fileInfos, fileInfo)
-	}
-
-	if err := f(fileInfos); err != nil {
-		return err
-	}
-	if prevDir != "" {
-		if err := os.Chdir(prevDir); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// paths of fileInfo are considered relative to current dir
-// as returned by readdir(path); chdir(path)
-// note we do not include the dir size reported by stat (for its entries), just the size of files.
-// The size reported is apparent size, not adjusted for cluster waste or holes.
-func deepSize(
-	fileInfo du.FileInfo,
-) (int64, error) {
-	if !fileInfo.IsDir() {
-		return fileInfo.Size(), nil
-	}
-
-	var totalSize int64
-	err := visitDir(fileInfo.Name(), "..", func(fileInfos []du.FileInfo) error {
-		for _, fileInfo := range fileInfos {
-			size, err := deepSize(fileInfo)
-			if err != nil {
-				return err
-			}
-			totalSize += size
-		}
-		return nil
-	})
-	if err != nil {
-		return 0, err
-	}
-
-	return totalSize, nil
-}
-
-func readDirDeep(path string) ([]deepFileInfo, error) {
-	if fileInfo, err := du.Stat(path); err != nil {
-		return nil, err
-	} else if !fileInfo.IsDir() {
-		return []deepFileInfo{{fileInfo, fileInfo.Size()}}, nil
-	}
-
-	var dirEntries []deepFileInfo
-	err := visitDir(path, "", func(fileInfos []du.FileInfo) error {
-		for _, fileInfo := range fileInfos {
-			size, err := deepSize(fileInfo)
-			if err != nil {
-				return err
-			}
-			entry := deepFileInfo{fileInfo, size}
-			dirEntries = append(dirEntries, entry)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return dirEntries, nil
-}
-
 func main() {
 	var sortBySize, reportFreeSpace bool
-	flag.BoolVar(&humanSizes, "human", false, "display size in KiB, MiB etc")
+	flag.BoolVar(&deep.HumanSizes, "human", false, "display size in KiB, MiB etc")
 	flag.BoolVar(&sortBySize, "sort", true, "sort by size")
 	flag.BoolVar(&reportFreeSpace, "free", false, "report free space")
 	flag.BoolVar(&du.ReportApparentSize, "apparent", false, "show apparent size")
@@ -142,14 +29,14 @@ func main() {
 	}
 
 	for i, path := range paths {
-		dirEntries, err := readDirDeep(path)
+		dirEntries, err := deep.ReadDirDeep(path)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 		if sortBySize {
 			sort.Slice(dirEntries, func(i, j int) bool {
-				return dirEntries[i].deepSize < dirEntries[j].deepSize
+				return dirEntries[i].Size() < dirEntries[j].Size()
 			})
 		}
 		for _, entry := range dirEntries {

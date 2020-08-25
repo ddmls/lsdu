@@ -135,7 +135,7 @@ func deepSize(
 
 // ReadDirDeep reads a directory and all the files beneath it or a file
 func ReadDirDeep(path string) ([]FileInfo, error) {
-	if fileInfo, err := du.Stat(path); err != nil {
+	if fileInfo, err := du.Lstat(path); err != nil {
 		return nil, err
 	} else if !fileInfo.IsDir() {
 		return []FileInfo{{fileInfo, fileInfo.Size()}}, nil

@@ -9,6 +9,8 @@ lsdu [OPTION]... [FILE|DIRECTORY]...
         report free space
   -human
         display size in KiB, MiB etc
+  -k    display size in KiB
+  -m    display size in MiB
   -sort
         sort by size (default true)
 ```

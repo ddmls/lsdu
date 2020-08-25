@@ -1,6 +1,8 @@
 package human
 
-import "testing"
+import (
+	"testing"
+)
 
 func Test_constants(t *testing.T) {
 	tests := []int64{KiB, MiB, GiB, TiB, PiB}
@@ -42,6 +44,34 @@ func Test_Humanize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := Humanize(tt.args.size); got != tt.want {
 				t.Errorf("humanize() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBase(t *testing.T) {
+	type args struct {
+		size   int64
+		base   int64
+		suffix bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"66K", args{66 * KiB, KiB, true}, "66.0K"},
+		{"66K no suffix", args{66 * KiB, KiB, false}, "66"},
+		{"0M no suffix", args{0 * MiB, MiB, false}, "0"},
+		{"0.0M", args{0 * MiB, MiB, true}, "0.0M"},
+		{"99.2G", args{992 * GiB / 10, GiB, true}, "99.2G"},
+		{"5599.2M", args{55992 * MiB / 10, MiB, true}, "5599.2M"},
+		{"5599.2M no suffix", args{55992 * MiB / 10, MiB, false}, "5599"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Base(tt.args.size, tt.args.base, tt.args.suffix); got != tt.want {
+				t.Errorf("Base() = %v, want %v", got, tt.want)
 			}
 		})
 	}

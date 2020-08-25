@@ -14,8 +14,13 @@ import (
 // (ReadDir uses Lstat)
 // hard links are not checked (they will be accounted more than once)
 
-// HumanSizes chooces whether size units in K, G, T etc will be used
-var HumanSizes bool
+// SizesHuman, SizesInK, SizesInK choose the formatting of sizes used by Print
+const (
+	SizesBytes = iota
+	SizesInK
+	SizesInM
+	SizesHuman
+)
 
 // FileInfo describes a file or a directory and all the files beneath it
 type FileInfo struct {
@@ -29,10 +34,35 @@ func (fi FileInfo) Size() int64 {
 }
 
 func (fi FileInfo) String() string {
-	if HumanSizes {
-		return fmt.Sprintf("%v %7s %s '%s'", fi.Mode(), human.Humanize(fi.deepSize), fi.ModTime().Format("2006-01-02"), fi.Name())
+	return fmt.Sprintf("%v %d %s '%s'", fi.Mode(), fi.Size(), fi.ModTime().Format("2006-01-02"), fi.Name())
+}
+
+// Print displays directory entries with specified formatting and automatic padding
+func Print(fis []FileInfo, sizeFormatting int) {
+	var formattedSizes []string
+	padding := 0
+	for _, fi := range fis {
+		var formattedSize string
+		switch sizeFormatting {
+		case SizesHuman:
+			formattedSize = human.Humanize(fi.Size())
+		case SizesInK:
+			formattedSize = human.Base(fi.Size(), human.KiB, false)
+		case SizesInM:
+			formattedSize = human.Base(fi.Size(), human.MiB, false)
+		default:
+			formattedSize = fmt.Sprintf("%d", fi.Size())
+		}
+		formattedSizes = append(formattedSizes, formattedSize)
+		if len(formattedSize) > padding {
+			padding = len(formattedSize)
+		}
 	}
-	return fmt.Sprintf("%v %d %s '%s'", fi.Mode(), fi.deepSize, fi.ModTime().Format("2006-01-02"), fi.Name())
+
+	for i, fi := range fis {
+		fmt.Printf("%v %*s %s '%s'\n", fi.Mode(), padding, formattedSizes[i], fi.ModTime().Format("2006-01-02"), fi.Name())
+	}
+
 }
 
 func visitDir(path string,

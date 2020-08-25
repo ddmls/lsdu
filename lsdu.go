@@ -12,8 +12,11 @@ import (
 )
 
 func main() {
-	var sortBySize, reportFreeSpace bool
-	flag.BoolVar(&deep.HumanSizes, "human", false, "display size in KiB, MiB etc")
+	var sizesHuman, sizesInK, sizesInM, sortBySize, reportFreeSpace bool
+	var sizeFormatting int
+	flag.BoolVar(&sizesHuman, "human", false, "display size in KiB, MiB etc")
+	flag.BoolVar(&sizesInK, "k", false, "display size in KiB")
+	flag.BoolVar(&sizesInM, "m", false, "display size in MiB")
 	flag.BoolVar(&sortBySize, "sort", true, "sort by size")
 	flag.BoolVar(&reportFreeSpace, "free", false, "report free space")
 	flag.BoolVar(&du.ReportApparentSize, "apparent", false, "show apparent size")
@@ -28,6 +31,17 @@ func main() {
 		paths = flag.Args()
 	}
 
+	switch {
+	case sizesInK:
+		sizeFormatting = deep.SizesInK
+	case sizesInM:
+		sizeFormatting = deep.SizesInM
+	case sizesHuman:
+		sizeFormatting = deep.SizesHuman
+	default:
+		sizeFormatting = deep.SizesBytes
+	}
+
 	for i, path := range paths {
 		dirEntries, err := deep.ReadDirDeep(path)
 		if err != nil {
@@ -39,9 +53,7 @@ func main() {
 				return dirEntries[i].Size() < dirEntries[j].Size()
 			})
 		}
-		for _, entry := range dirEntries {
-			fmt.Println(entry)
-		}
+		deep.Print(dirEntries, sizeFormatting)
 		if reportFreeSpace {
 			freeSpace, totalSpace, err := du.FreeSpace(path)
 			if err != nil {

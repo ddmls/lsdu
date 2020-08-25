@@ -104,10 +104,10 @@ func visitDir(path string,
 	return nil
 }
 
-// paths of fileInfo are considered relative to current dir
-// as returned by readdir(path); chdir(path)
+// du.Fileinfo.Name() doesn't contain the full path, it is considered relative to current dir as returned by readdir(path); chdir(path)
+// so someone has to call chdir to the directory that contains it before calling deepSize
+// this is done by visitDir when deepSize calls itself
 // note we do not include the dir size reported by stat (for its entries), just the size of files.
-// The size reported is apparent size, not adjusted for cluster waste or holes.
 func deepSize(
 	fileInfo du.FileInfo,
 ) (int64, error) {
@@ -134,15 +134,20 @@ func deepSize(
 }
 
 // ReadDirDeep reads a directory and all the files beneath it or a file
-func ReadDirDeep(path string) ([]FileInfo, error) {
+func ReadDirDeep(path string) ([]FileInfo, int64, error) {
 	if fileInfo, err := du.Lstat(path); err != nil {
-		return nil, err
+		return nil, 0, err
 	} else if !fileInfo.IsDir() {
-		return []FileInfo{{fileInfo, fileInfo.Size()}}, nil
+		return []FileInfo{{fileInfo, fileInfo.Size()}}, fileInfo.Size(), nil
 	}
 
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, 0, err
+	}
 	var dirEntries []FileInfo
-	err := visitDir(path, "", func(fileInfos []du.FileInfo) error {
+	var totalSize int64
+	err = visitDir(path, pwd, func(fileInfos []du.FileInfo) error {
 		for _, fileInfo := range fileInfos {
 			size, err := deepSize(fileInfo)
 			if err != nil {
@@ -150,12 +155,13 @@ func ReadDirDeep(path string) ([]FileInfo, error) {
 			}
 			entry := FileInfo{fileInfo, size}
 			dirEntries = append(dirEntries, entry)
+			totalSize += size
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return dirEntries, nil
+	return dirEntries, totalSize, nil
 }

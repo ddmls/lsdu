@@ -14,14 +14,6 @@ import (
 // (ReadDir uses Lstat)
 // hard links are not checked (they will be accounted more than once)
 
-// SizesHuman, SizesInK, SizesInK choose the formatting of sizes used by Print
-const (
-	SizesBytes = iota
-	SizesInK
-	SizesInM
-	SizesHuman
-)
-
 // FileInfo describes a file or a directory and all the files beneath it
 type FileInfo struct {
 	du.FileInfo
@@ -42,17 +34,7 @@ func Print(fis []FileInfo, sizeFormatting int) {
 	var formattedSizes []string
 	padding := 0
 	for _, fi := range fis {
-		var formattedSize string
-		switch sizeFormatting {
-		case SizesHuman:
-			formattedSize = human.Humanize(fi.Size())
-		case SizesInK:
-			formattedSize = human.Base(fi.Size(), human.KiB, false)
-		case SizesInM:
-			formattedSize = human.Base(fi.Size(), human.MiB, false)
-		default:
-			formattedSize = fmt.Sprintf("%d", fi.Size())
-		}
+		formattedSize := human.Format(fi.Size(), sizeFormatting)
 		formattedSizes = append(formattedSizes, formattedSize)
 		if len(formattedSize) > padding {
 			padding = len(formattedSize)

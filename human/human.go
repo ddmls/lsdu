@@ -16,6 +16,14 @@ const (
 
 var suffixes = [...]string{"b", "K", "M", "G", "T", "P", "E"}
 
+// SizesHuman, SizesInK, SizesInK choose the formatting of sizes used by Format
+const (
+	SizesBytes = iota
+	SizesInK
+	SizesInM
+	SizesHuman
+)
+
 // Humanize reports the size in power of 1024 units (KiB, MiB etc)
 func Humanize(size int64) string {
 	if size < 1024 {
@@ -34,4 +42,18 @@ func Base(size, base int64, suffix bool) string {
 		return fmt.Sprintf("%.1f%s", float64(size)/float64(base), suffixes[b])
 	}
 	return fmt.Sprintf("%d", size/base)
+}
+
+// Format return the size formatted according to sizeFormatting
+func Format(size int64, sizeFormatting int) string {
+	switch sizeFormatting {
+	case SizesHuman:
+		return Humanize(size)
+	case SizesInK:
+		return Base(size, KiB, false)
+	case SizesInM:
+		return Base(size, MiB, false)
+	default:
+		return fmt.Sprintf("%d", size)
+	}
 }

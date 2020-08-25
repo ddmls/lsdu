@@ -34,13 +34,13 @@ func main() {
 
 	switch {
 	case sizesInK:
-		sizeFormatting = deep.SizesInK
+		sizeFormatting = human.SizesInK
 	case sizesInM:
-		sizeFormatting = deep.SizesInM
+		sizeFormatting = human.SizesInM
 	case sizesHuman:
-		sizeFormatting = deep.SizesHuman
+		sizeFormatting = human.SizesHuman
 	default:
-		sizeFormatting = deep.SizesBytes
+		sizeFormatting = human.SizesBytes
 	}
 
 	for i, path := range paths {
@@ -56,7 +56,7 @@ func main() {
 		}
 		deep.Print(dirEntries, sizeFormatting)
 		if reportTotalSize {
-			fmt.Printf("Total size %s\n", human.Humanize(totalSize))
+			fmt.Printf("Total size %s\n", human.Format(totalSize, sizeFormatting))
 		}
 		if reportFreeSpace {
 			freeSpace, totalSpace, err := du.FreeSpace(path)
@@ -64,7 +64,7 @@ func main() {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
-			fmt.Printf("Free space %s/%s\n", human.Humanize(int64(freeSpace)), human.Humanize(int64(totalSpace)))
+			fmt.Printf("Free space %s/%s\n", human.Format(int64(freeSpace), sizeFormatting), human.Format(int64(totalSpace), sizeFormatting))
 		}
 		if i < len(paths)-1 {
 			fmt.Println()

@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"sort"
+	"syscall"
 
 	"github.com/ddmls/lsdu/deep"
 	"github.com/ddmls/lsdu/du"
@@ -18,7 +20,7 @@ func main() {
 	flag.BoolVar(&sizesInK, "k", false, "display size in KiB")
 	flag.BoolVar(&sizesInM, "m", false, "display size in MiB")
 	flag.BoolVar(&sortBySize, "sort", true, "sort by size")
-	flag.BoolVar(&reportTotalSize, "total", false, "report free space")
+	flag.BoolVar(&reportTotalSize, "total", false, "report a total for all files")
 	flag.BoolVar(&reportFreeSpace, "free", false, "report free space")
 	flag.BoolVar(&du.ReportApparentSize, "apparent", false, "show apparent size")
 	flag.Usage = func() {
@@ -43,7 +45,7 @@ func main() {
 		sizeFormatting = human.SizesBytes
 	}
 
-	for i, path := range paths {
+	for _, path := range paths {
 		dirEntries, totalSize, err := deep.ReadDirDeep(path)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -58,16 +60,25 @@ func main() {
 		if reportTotalSize {
 			fmt.Printf("Total size %s\n", human.Format(totalSize, sizeFormatting))
 		}
-		if reportFreeSpace {
-			freeSpace, totalSpace, err := du.FreeSpace(path)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
-			}
-			fmt.Printf("Free space %s/%s\n", human.Format(int64(freeSpace), sizeFormatting), human.Format(int64(totalSpace), sizeFormatting))
+	}
+	if reportFreeSpace {
+		// Remove duplicate filesystems with same Fsid
+		type df struct {
+			path       string
+			freeSpace  uint64
+			totalSpace uint64
 		}
-		if i < len(paths)-1 {
-			fmt.Println()
+		uniqueDf := make(map[syscall.Fsid]df)
+		for _, path := range paths {
+			freeSpace, totalSpace, fsid, err := du.FreeSpace(path)
+			if err != nil {
+				log.Println("Could not get free disk information for ", path)
+			}
+			uniqueDf[fsid] = df{path, freeSpace, totalSpace}
+
+		}
+		for _, v := range uniqueDf {
+			fmt.Printf("Free space %s/%s: %s\n", human.Format(int64(v.freeSpace), sizeFormatting), human.Format(int64(v.totalSpace), sizeFormatting), v.path)
 		}
 	}
 }

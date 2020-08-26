@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"sort"
 	"syscall"
@@ -45,6 +44,7 @@ func main() {
 		sizeFormatting = human.SizesBytes
 	}
 
+	var grandTotalSize int64
 	for _, path := range paths {
 		dirEntries, totalSize, err := deep.ReadDirDeep(path)
 		if err != nil {
@@ -57,9 +57,10 @@ func main() {
 			})
 		}
 		deep.Print(dirEntries, sizeFormatting)
-		if reportTotalSize {
-			fmt.Printf("Total size %s\n", human.Format(totalSize, sizeFormatting))
-		}
+		grandTotalSize += totalSize
+	}
+	if reportTotalSize {
+		fmt.Printf("Total size %s\n", human.Format(grandTotalSize, sizeFormatting))
 	}
 	if reportFreeSpace {
 		// Remove duplicate filesystems with same Fsid
@@ -72,7 +73,8 @@ func main() {
 		for _, path := range paths {
 			freeSpace, totalSpace, fsid, err := du.FreeSpace(path)
 			if err != nil {
-				log.Println("Could not get free disk information for ", path)
+				fmt.Fprintln(os.Stderr, "Could not get free disk information for", path)
+				continue
 			}
 			uniqueDf[fsid] = df{path, freeSpace, totalSpace}
 

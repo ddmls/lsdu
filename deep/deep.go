@@ -16,18 +16,19 @@ import (
 // (ReadDir uses Lstat)
 // hard links are not checked (they will be accounted more than once)
 
-// FileInfo describes a file or a directory and all the files beneath it
-type FileInfo struct {
+// DirEntry describes a file or a directory and all the files beneath it
+type DirEntry struct {
 	du.FileInfo
+	path     string
 	deepSize int64
 }
 
 // Size returns the size (apparent or allocated) of a file or all the files beneath a directory
-func (fi FileInfo) Size() int64 {
+func (fi DirEntry) Size() int64 {
 	return fi.deepSize
 }
 
-func (fi FileInfo) String() string {
+func (fi DirEntry) String() string {
 	return fmt.Sprintf("%v %d %s \"%s\"", fi.Mode(), fi.Size(), fi.ModTime().Format("2006-01-02"), fi.Name())
 }
 
@@ -49,7 +50,7 @@ func MaybeQuote(s string) string {
 }
 
 // Print displays directory entries with specified formatting and automatic padding
-func Print(fis []FileInfo, sizeFormatting int) {
+func Print(fis []DirEntry, sizeFormatting int) {
 	var formattedSizes []string
 	padding := 0
 	for _, fi := range fis {
@@ -65,97 +66,55 @@ func Print(fis []FileInfo, sizeFormatting int) {
 	}
 }
 
-func visitDir(path string,
-	prevDir string,
-	f func([]du.FileInfo) error) error {
+func readDir(path string) ([]du.FileInfo, error) {
 	dir, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer dir.Close()
 
 	fileInfos, err := du.Readdir(dir, 0)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	if err := dir.Chdir(); err != nil {
-		return err
-	}
-
-	if err := f(fileInfos); err != nil {
-		return err
-	}
-	if prevDir != "" {
-		if err := os.Chdir(prevDir); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return fileInfos, err
 }
 
-// du.Fileinfo.Name() doesn't contain the full path, it is considered relative to current dir as returned by readdir(path); chdir(path)
-// so someone has to call chdir to the directory that contains it before calling deepSize
-// this is done by visitDir when deepSize calls itself
-// note we do not include the dir size reported by stat (for its entries), just the size of files.
-func deepSize(
-	fileInfo du.FileInfo,
-) (int64, error) {
+// ReadDirDeep reads a directory and the deep size of each entry
+// We do not include the dir size reported by stat, just the size of files underneath it.
+func ReadDirDeep(path string) ([]DirEntry, int64, error) {
+	// This test is only needed for the initial caller. We only call ourselves when the path is a directory.
+	fileInfo, err := du.Lstat(path)
+	if err != nil {
+		return nil, 0, err
+	}
 	if !fileInfo.IsDir() {
-		return fileInfo.Size(), nil
+		return []DirEntry{{fileInfo, path, fileInfo.Size()}}, fileInfo.Size(), nil
 	}
 
 	var totalSize int64
-	err := visitDir(fileInfo.Name(), "..", func(fileInfos []du.FileInfo) error {
-		for _, fileInfo := range fileInfos {
-			size, err := deepSize(fileInfo)
-			if err != nil {
-				if errors.Is(err, os.ErrPermission) || errors.Is(err, os.ErrNotExist) {
-					fmt.Fprintln(os.Stderr, err)
-					continue
-				}
-				return err
-			}
-			totalSize += size
+	var dirEntries []DirEntry
+	fileInfos, err := readDir(path)
+	if err != nil {
+		if errors.Is(err, os.ErrPermission) || errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintln(os.Stderr, err)
+			return []DirEntry{}, 0, nil
 		}
-		return nil
-	})
-	if err != nil {
-		return 0, err
-	}
-
-	return totalSize, nil
-}
-
-// ReadDirDeep reads a directory and all the files beneath it or a file
-func ReadDirDeep(path string) ([]FileInfo, int64, error) {
-	if fileInfo, err := du.Lstat(path); err != nil {
-		return nil, 0, err
-	} else if !fileInfo.IsDir() {
-		return []FileInfo{{fileInfo, fileInfo.Size()}}, fileInfo.Size(), nil
-	}
-
-	pwd, err := os.Getwd()
-	if err != nil {
 		return nil, 0, err
 	}
-	var dirEntries []FileInfo
-	var totalSize int64
-	err = visitDir(path, pwd, func(fileInfos []du.FileInfo) error {
-		for _, fileInfo := range fileInfos {
-			size, err := deepSize(fileInfo)
+	for _, fileInfo := range fileInfos {
+		var size int64
+		entryPath := path + string(os.PathSeparator) + fileInfo.Name()
+		if !fileInfo.IsDir() {
+			size = fileInfo.Size()
+		} else {
+			_, size, err = ReadDirDeep(entryPath)
 			if err != nil {
-				return err
+				return nil, 0, err
 			}
-			entry := FileInfo{fileInfo, size}
-			dirEntries = append(dirEntries, entry)
-			totalSize += size
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, 0, err
+		totalSize += size
+		dirEntries = append(dirEntries, DirEntry{fileInfo, entryPath, size})
 	}
 
 	return dirEntries, totalSize, nil

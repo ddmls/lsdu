@@ -21,6 +21,7 @@ truncate -s 0 emptyfileaa
 fallocate -l 50M fileab
 ln -s fileaa symlinkaa
 cd ..
+ln -s diraa symlinkdiraa
 cd ..
 
 ln -s dira dirb

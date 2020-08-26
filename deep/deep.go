@@ -63,7 +63,6 @@ func Print(fis []FileInfo, sizeFormatting int) {
 	for i, fi := range fis {
 		fmt.Printf("%v %*s %s %s\n", fi.Mode(), padding, formattedSizes[i], fi.ModTime().Format("2006-01-02"), MaybeQuote(fi.Name()))
 	}
-
 }
 
 func visitDir(path string,
@@ -75,22 +74,13 @@ func visitDir(path string,
 	}
 	defer dir.Close()
 
-	dirnames, err := dir.Readdirnames(-1)
+	fileInfos, err := du.Readdir(dir, 0)
 	if err != nil {
 		return err
 	}
 
 	if err := dir.Chdir(); err != nil {
 		return err
-	}
-
-	var fileInfos []du.FileInfo
-	for _, name := range dirnames {
-		fileInfo, err := du.Lstat(name)
-		if err != nil {
-			return err
-		}
-		fileInfos = append(fileInfos, fileInfo)
 	}
 
 	if err := f(fileInfos); err != nil {

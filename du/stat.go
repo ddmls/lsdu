@@ -81,3 +81,15 @@ func Lstat(path string) (FileInfo, error) {
 	fi, err := os.Lstat(path)
 	return fileInfo{fi}, err
 }
+
+// Readdir wraps os.Readdir providing allocated size information
+// We cannot have du.Readdir as a method on os.File like os.Readdir
+func Readdir(f *os.File, n int) ([]FileInfo, error) {
+	osfis, err := f.Readdir(n)
+	// os.Readdir may return a non-empty slice even if the error is non-nil when n<=0
+	var fis []FileInfo
+	for _, fi := range osfis {
+		fis = append(fis, fileInfo{fi})
+	}
+	return fis, err
+}

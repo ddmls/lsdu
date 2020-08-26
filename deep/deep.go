@@ -1,6 +1,7 @@
 package deep
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"unicode"
@@ -120,6 +121,10 @@ func deepSize(
 		for _, fileInfo := range fileInfos {
 			size, err := deepSize(fileInfo)
 			if err != nil {
+				if errors.Is(err, os.ErrPermission) || errors.Is(err, os.ErrNotExist) {
+					fmt.Fprintln(os.Stderr, err)
+					continue
+				}
 				return err
 			}
 			totalSize += size

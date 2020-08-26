@@ -3,6 +3,7 @@ package deep
 import (
 	"fmt"
 	"os"
+	"unicode"
 
 	"github.com/ddmls/lsdu/du"
 	"github.com/ddmls/lsdu/human"
@@ -26,7 +27,24 @@ func (fi FileInfo) Size() int64 {
 }
 
 func (fi FileInfo) String() string {
-	return fmt.Sprintf("%v %d %s '%s'", fi.Mode(), fi.Size(), fi.ModTime().Format("2006-01-02"), fi.Name())
+	return fmt.Sprintf("%v %d %s \"%s\"", fi.Mode(), fi.Size(), fi.ModTime().Format("2006-01-02"), fi.Name())
+}
+
+func containsSpace(s string) bool {
+	for _, rune := range s {
+		if unicode.IsSpace(rune) {
+			return true
+		}
+	}
+	return false
+}
+
+// MaybeQuote quotes a string with single quotes if it contains spaces
+func MaybeQuote(s string) string {
+	if containsSpace(s) {
+		return fmt.Sprintf("'%s'", s)
+	}
+	return s
 }
 
 // Print displays directory entries with specified formatting and automatic padding
@@ -42,7 +60,7 @@ func Print(fis []FileInfo, sizeFormatting int) {
 	}
 
 	for i, fi := range fis {
-		fmt.Printf("%v %*s %s '%s'\n", fi.Mode(), padding, formattedSizes[i], fi.ModTime().Format("2006-01-02"), fi.Name())
+		fmt.Printf("%v %*s %s %s\n", fi.Mode(), padding, formattedSizes[i], fi.ModTime().Format("2006-01-02"), MaybeQuote(fi.Name()))
 	}
 
 }

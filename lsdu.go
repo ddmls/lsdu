@@ -80,7 +80,7 @@ func main() {
 
 		}
 		for _, v := range uniqueDf {
-			fmt.Printf("Free space %s/%s: %s\n", human.Format(int64(v.freeSpace), sizeFormatting), human.Format(int64(v.totalSpace), sizeFormatting), v.path)
+			fmt.Printf("Free space %s/%s %s\n", human.Format(int64(v.freeSpace), sizeFormatting), human.Format(int64(v.totalSpace), sizeFormatting), deep.MaybeQuote(v.path))
 		}
 	}
 }

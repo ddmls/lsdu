@@ -2,7 +2,6 @@
 Hybrid of ls, du and df
 
 ```
-lsdu [OPTION]... [FILE|DIRECTORY]...
   -apparent
         show apparent size
   -free
@@ -13,4 +12,6 @@ lsdu [OPTION]... [FILE|DIRECTORY]...
   -m    display size in MiB
   -sort
         sort by size (default true)
+  -total
+        report a total for all files
 ```

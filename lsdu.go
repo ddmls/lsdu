@@ -46,6 +46,7 @@ func main() {
 
 	var grandTotalSize int64
 	for _, path := range paths {
+		fmt.Printf("%s:\n", path)
 		dirEntries, totalSize, err := deep.ReadDirDeep(path)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)

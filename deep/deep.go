@@ -81,7 +81,6 @@ func readDir(path string) ([]du.FileInfo, error) {
 }
 
 // ReadDirDeep reads a directory and the deep size of each entry
-// We do not include the dir size reported by stat, just the size of files underneath it.
 func ReadDirDeep(path string) ([]DirEntry, int64, error) {
 	// This test is only needed for the initial caller. We only call ourselves when the path is a directory.
 	fileInfo, err := du.Lstat(path)
@@ -98,7 +97,7 @@ func ReadDirDeep(path string) ([]DirEntry, int64, error) {
 	if err != nil {
 		if errors.Is(err, os.ErrPermission) || errors.Is(err, os.ErrNotExist) {
 			fmt.Fprintln(os.Stderr, err)
-			return []DirEntry{}, 0, nil
+			return []DirEntry{{fileInfo, path, fileInfo.Size()}}, fileInfo.Size(), nil
 		}
 		return nil, 0, err
 	}
@@ -112,6 +111,7 @@ func ReadDirDeep(path string) ([]DirEntry, int64, error) {
 			if err != nil {
 				return nil, 0, err
 			}
+			size += fileInfo.Size()
 		}
 		totalSize += size
 		dirEntries = append(dirEntries, DirEntry{fileInfo, entryPath, size})
